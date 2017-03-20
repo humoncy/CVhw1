@@ -4,6 +4,7 @@ ehthumbs.db
 
 *.opendb
 *.db
+*.pdb
 
 # Folder config file
 Desktop.ini

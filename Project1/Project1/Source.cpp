@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <math.h>
 
 using namespace std;
 using namespace cv;
@@ -42,8 +43,8 @@ int main() {
 	}
 
 	// normal matrix
-	for (int rowIndex = 100; rowIndex < Image.rows; rowIndex++) {
-		for (int colIndex = 95; colIndex < Image.cols; colIndex++) {
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
 			Mat I = Mat(6, 1, CV_32F);
 			I.at<float>(0, 0) = (float)Image.at<uchar>(rowIndex, colIndex);
 			I.at<float>(1, 0) = (float)Image2.at<uchar>(rowIndex, colIndex);
@@ -53,24 +54,24 @@ int main() {
 			I.at<float>(5, 0) = (float)Image6.at<uchar>(rowIndex, colIndex);
 
 			Mat B = ((S.t() * S).inv() * S.t() * I);
-			cout << B << endl;
+			//cout << B << endl;
+			float norm_b = sqrt(pow(B.at<float>(0, 0), 2.0) + pow(B.at<float>(1, 0), 2.0) + pow(B.at<float>(2, 0), 2.0));
 			//cout << B.at<float>(2, 0);
-			normalImage.at<Vec3f>(rowIndex, colIndex)[0] = B.at<float>(0, 0);
-			normalImage.at<Vec3f>(rowIndex, colIndex)[1] = B.at<float>(1, 0);
-			normalImage.at<Vec3f>(rowIndex, colIndex)[2] = B.at<float>(2, 0);
+			//cout << norm_b;
+			normalImage.at<Vec3f>(rowIndex, colIndex)[0] = B.at<float>(0, 0) / norm_b;
+			normalImage.at<Vec3f>(rowIndex, colIndex)[1] = B.at<float>(1, 0) / norm_b;
+			normalImage.at<Vec3f>(rowIndex, colIndex)[2] = B.at<float>(2, 0) / norm_b;
 
 			//cout << normalImage.at<Vec3f>(rowIndex, colIndex) << endl;
 
-			break;
 		}
-		break;
 	}
 
 	//Mat result(Image.rows, Image.cols, CV_8U, Scalar(0));
 	//// Rect ( x, y, width, height )
 	//Image.copyTo(result(Rect(0, 0, tempImage.cols, tempImage.rows)));
 
-	//imshow("CV", result);
+	//imshow("CV", Image);
 	//
 	//waitKey();
 	
