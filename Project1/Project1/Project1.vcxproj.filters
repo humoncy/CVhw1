@@ -18,7 +18,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\Desktop\CV_hw1\Sample.cpp">
+    <ClCompile Include="Source.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
   </ItemGroup>
