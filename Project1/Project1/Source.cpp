@@ -16,9 +16,9 @@ int main() {
 	Mat Image5 = imread("test/bunny/pic5.bmp", IMREAD_GRAYSCALE);
 	Mat Image6 = imread("test/bunny/pic6.bmp", IMREAD_GRAYSCALE);
 
-	Mat tempImage = Image.clone();
 	Mat normalImage(Image.rows, Image.cols, CV_32FC3);
 	Mat S = Mat(6, 3, CV_32F);
+	Mat Z_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 
 	fstream fin;
 	string line;
@@ -61,9 +61,12 @@ int main() {
 			normalImage.at<Vec3f>(rowIndex, colIndex)[0] = B.at<float>(0, 0) / norm_b;
 			normalImage.at<Vec3f>(rowIndex, colIndex)[1] = B.at<float>(1, 0) / norm_b;
 			normalImage.at<Vec3f>(rowIndex, colIndex)[2] = B.at<float>(2, 0) / norm_b;
-
 			//cout << normalImage.at<Vec3f>(rowIndex, colIndex) << endl;
-
+			float n1 = normalImage.at<Vec3f>(rowIndex, colIndex)[0];
+			float n2 = normalImage.at<Vec3f>(rowIndex, colIndex)[1];
+			float n3 = normalImage.at<Vec3f>(rowIndex, colIndex)[2];
+			float constant = 0.0;
+			Z_gradient.at<float>(rowIndex, colIndex) = (-n1 / n3) * rowIndex + (-n2 / n3) * colIndex + constant;
 		}
 	}
 
