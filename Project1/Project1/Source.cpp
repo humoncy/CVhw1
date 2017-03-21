@@ -8,27 +8,30 @@
 using namespace std;
 using namespace cv;
 
-int main() {
-	Mat Image = imread("test/bunny/pic1.bmp", IMREAD_GRAYSCALE);
-	Mat Image2 = imread("test/bunny/pic2.bmp", IMREAD_GRAYSCALE);
-	Mat Image3 = imread("test/bunny/pic3.bmp", IMREAD_GRAYSCALE);
-	Mat Image4 = imread("test/bunny/pic4.bmp", IMREAD_GRAYSCALE);
-	Mat Image5 = imread("test/bunny/pic5.bmp", IMREAD_GRAYSCALE);
-	Mat Image6 = imread("test/bunny/pic6.bmp", IMREAD_GRAYSCALE);
+Mat Image, Image2, Image3, Image4, Image5, Image6;
 
-	Mat normalImage(Image.rows, Image.cols, CV_32FC3);
-	Mat S = Mat(6, 3, CV_32F);
-	Mat Z_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
-	Mat Z = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+Mat S = Mat(6, 3, CV_32F);
 
+
+void ReadImages()
+{
+	Image = imread("test/bunny/pic1.bmp", IMREAD_GRAYSCALE);
+	Image2 = imread("test/bunny/pic2.bmp", IMREAD_GRAYSCALE);
+	Image3 = imread("test/bunny/pic3.bmp", IMREAD_GRAYSCALE);
+	Image4 = imread("test/bunny/pic4.bmp", IMREAD_GRAYSCALE);
+	Image5 = imread("test/bunny/pic5.bmp", IMREAD_GRAYSCALE);
+	Image6 = imread("test/bunny/pic6.bmp", IMREAD_GRAYSCALE);
+}
+
+void ReadLightSources()
+{
 	fstream fin;
 	string line;
 	int a;
-	std::string::size_type sz;   // alias of size_t
 	fin.open("test/bunny/LightSource.txt", ios::in);
 	if (!fin) {
 		cout << "Fail to open file." << endl;
-		return 0;
+		return;
 	}
 	// Read LightSource and initialize S
 	for (int x = 0; x < S.rows; x++) {
@@ -43,6 +46,24 @@ int main() {
 			fin >> a;
 		}
 	}
+}
+
+int main() {
+	
+
+	ReadImages();
+
+	ReadLightSources();
+
+	Mat NormalImage(Image.rows, Image.cols, CV_32FC3);
+	Mat X_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat Y_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat Z_approx = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+
+	//cout << Image.cols;
+
+	//cout << S << endl;
+	//cout << Z_approx.at<float>(0, 0) << endl;
 
 	// normal matrix
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
@@ -55,31 +76,45 @@ int main() {
 			I.at<float>(4, 0) = (float)Image5.at<uchar>(rowIndex, colIndex);
 			I.at<float>(5, 0) = (float)Image6.at<uchar>(rowIndex, colIndex);
 
+			//cout << "I(x,y):\n" << I << endl;
+
 			Mat B = ((S.t() * S).inv() * S.t() * I);
-			//cout << B << endl;
+			//cout << "B(x,y):\n" << B << endl;
 			float norm_b = sqrt(pow(B.at<float>(0, 0), 2.0) + pow(B.at<float>(1, 0), 2.0) + pow(B.at<float>(2, 0), 2.0));
 			//cout << B.at<float>(2, 0);
-			//cout << norm_b;
-			normalImage.at<Vec3f>(rowIndex, colIndex)[0] = B.at<float>(0, 0) / norm_b;
-			normalImage.at<Vec3f>(rowIndex, colIndex)[1] = B.at<float>(1, 0) / norm_b;
-			normalImage.at<Vec3f>(rowIndex, colIndex)[2] = B.at<float>(2, 0) / norm_b;
-			//cout << normalImage.at<Vec3f>(rowIndex, colIndex) << endl;
-			float n1 = normalImage.at<Vec3f>(rowIndex, colIndex)[0];
-			float n2 = normalImage.at<Vec3f>(rowIndex, colIndex)[1];
-			float n3 = normalImage.at<Vec3f>(rowIndex, colIndex)[2];
-			float constant = 0.0;
-			Z_gradient.at<float>(rowIndex, colIndex) = (-n1 / n3) * rowIndex + (-n2 / n3) * colIndex + constant;
+			//cout << "norm_b:\n" << norm_b << endl;
+
+			NormalImage.at<Vec3f>(rowIndex, colIndex)[0] = (norm_b == 0) ? B.at<float>(0, 0) : B.at<float>(0, 0) / norm_b;
+			NormalImage.at<Vec3f>(rowIndex, colIndex)[1] = (norm_b == 0) ? B.at<float>(1, 0) : B.at<float>(1, 0) / norm_b;
+			NormalImage.at<Vec3f>(rowIndex, colIndex)[2] = (norm_b == 0) ? B.at<float>(2, 0) : B.at<float>(2, 0) / norm_b;
+
+			//cout << "N(x,y):\n" << NormalImage.at<Vec3f>(rowIndex, colIndex) << endl;
+
+					
+			float n1 = NormalImage.at<Vec3f>(rowIndex, colIndex)[0];
+			float n2 = NormalImage.at<Vec3f>(rowIndex, colIndex)[1];
+			float n3 = NormalImage.at<Vec3f>(rowIndex, colIndex)[2];
+			
+			//cout << "norm_N: " << pow(n1,2) + pow(n2,2) + pow(n3,2) << endl;
+			X_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n1 : -n1 / n3;
+			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n2 : -n2 / n3;
+			//Z_approx.at<float>(rowIndex, colIndex) = 4 * X_gradient.at<float>(rowIndex, colIndex) + Y_gradient.at<float>(rowIndex, colIndex);
+			//cout << "Zapprox:\n" << Z_approx.at<float>(rowIndex, colIndex) << endl;
+			//break;
 		}
+		//break;
 	}
+	
+	//cout << Z_approx.at<float>(0, 0) << endl;
 
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
 		for (int colIndex = 1; colIndex < Image.cols; colIndex++) {
-			Z.at<float>(rowIndex, colIndex) = Z.at<float>(rowIndex, colIndex - 1) + Z_gradient.at<float>(rowIndex, colIndex);
+			Z_approx.at<float>(rowIndex, colIndex) = Z_approx.at<float>(rowIndex, colIndex - 1) + X_gradient.at<float>(rowIndex, colIndex);
 		}
 	}
 	for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
 		for (int rowIndex = 1; rowIndex < Image.rows; rowIndex++) {
-			Z.at<float>(rowIndex, colIndex) = Z.at<float>(rowIndex - 1, colIndex) + Z_gradient.at<float>(rowIndex, colIndex);
+			Z_approx.at<float>(rowIndex, colIndex) = Z_approx.at<float>(rowIndex - 1, colIndex) + Y_gradient.at<float>(rowIndex, colIndex);
 		}
 	}
 
@@ -104,7 +139,8 @@ int main() {
 
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
 		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
-			fout << rowIndex << ' ' << colIndex << ' ' << Z.at<float>(rowIndex, colIndex) << " 255 255 255" << endl;
+			fout << rowIndex << ' ' << colIndex << ' ' << Z_approx.at<float>(rowIndex, colIndex) << " 255 255 255" << endl;
+			//fout << rowIndex << ' ' << colIndex << ' ' << "0.0" << " 255 255 255" << endl;
 		}
 	}
 
