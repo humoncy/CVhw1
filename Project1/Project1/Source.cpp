@@ -12,6 +12,10 @@ Mat Image, Image2, Image3, Image4, Image5, Image6;
 
 Mat S = Mat(6, 3, CV_32F);
 
+float norm(float a, float b, float c)
+{
+	return sqrt(pow(a, 2.0) + pow(b, 2.0) + pow(c, 2.0));
+}
 
 void ReadImages()
 {
@@ -107,14 +111,58 @@ int main() {
 	
 	//cout << Z_approx.at<float>(0, 0) << endl;
 
+	Mat X_integral_LtoR = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat X_integral_RtoL = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat Y_integral_UtoD = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat Y_integral_DtoU = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+
+
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
 		for (int colIndex = 1; colIndex < Image.cols; colIndex++) {
-			Z_approx.at<float>(rowIndex, colIndex) = Z_approx.at<float>(rowIndex, colIndex - 1) + X_gradient.at<float>(rowIndex, colIndex);
+			int colIndex_inv = Image.cols - colIndex - 1; // 118~0
+			X_integral_LtoR.at<float>(rowIndex, colIndex) = X_integral_LtoR.at<float>(rowIndex, colIndex - 1) + X_gradient.at<float>(rowIndex, colIndex);
+			X_integral_RtoL.at<float>(rowIndex, colIndex_inv) = X_integral_RtoL.at<float>(rowIndex, colIndex_inv + 1) + X_gradient.at<float>(rowIndex, colIndex_inv);
+			
+			//Z_approx.at<float>(rowIndex, colIndex) = Z_approx.at<float>(rowIndex, colIndex - 1) + X_gradient.at<float>(rowIndex, colIndex);
 		}
 	}
 	for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
 		for (int rowIndex = 1; rowIndex < Image.rows; rowIndex++) {
-			Z_approx.at<float>(rowIndex, colIndex) = Z_approx.at<float>(rowIndex - 1, colIndex) + Y_gradient.at<float>(rowIndex, colIndex);
+			int rowIndex_inv = Image.rows - rowIndex - 1; // 118~0
+			Y_integral_UtoD.at<float>(rowIndex, colIndex) = Y_integral_UtoD.at<float>(rowIndex - 1, colIndex) + Y_gradient.at<float>(rowIndex, colIndex);
+			Y_integral_DtoU.at<float>(rowIndex, rowIndex_inv) = Y_integral_DtoU.at<float>(rowIndex_inv + 1, colIndex) + Y_gradient.at<float>(rowIndex_inv, colIndex);
+
+			//Z_approx.at<float>(rowIndex, colIndex) = Z_approx.at<float>(rowIndex - 1, colIndex) + Y_gradient.at<float>(rowIndex, colIndex);
+		}
+	}
+
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			int colIndex_inv = Image.cols - colIndex - 1; // 118~0
+			int w_LtoR = Image.cols - colIndex;  // weight from left
+			int w_RtoL = colIndex;
+			Z_approx.at<float>(rowIndex, colIndex) = (X_integral_LtoR.at<float>(rowIndex, colIndex) * w_LtoR + X_integral_RtoL.at<float>(rowIndex, colIndex_inv) * w_RtoL) / Image.cols;
+			
+		}
+	}
+
+	for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+		for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+			int rowIndex_inv = Image.rows - rowIndex - 1; // 118~0
+			int w_UtoD = Image.rows - rowIndex;  // weight from left
+			int w_DtoU = rowIndex;
+			Z_approx.at<float>(rowIndex, colIndex) += (Y_integral_UtoD.at<float>(rowIndex, colIndex) * w_UtoD + Y_integral_DtoU.at<float>(rowIndex_inv, colIndex) * w_DtoU) / Image.rows;
+
+		}
+	}
+
+	//cout << NormalImage.at<Vec3f>(0, 0) << endl;
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			float normal_length = norm(NormalImage.at<Vec3f>(rowIndex, colIndex)[0], NormalImage.at<Vec3f>(rowIndex, colIndex)[1], NormalImage.at<Vec3f>(rowIndex, colIndex)[2]);
+			if ( normal_length == 0.0 ) {
+				Z_approx.at<float>(rowIndex, colIndex) = 0.0;
+			}
 		}
 	}
 
