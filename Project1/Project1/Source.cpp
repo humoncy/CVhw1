@@ -1,5 +1,6 @@
 //#include <opencv/highgui.h>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -49,6 +50,10 @@ void readLightSources()
 			S.at<float>(x, y) = b;
 			fin >> a;
 		}
+		int norm_S = norm(S.at<float>(x, 0), S.at<float>(x, 1), S.at<float>(x, 2));
+		S.at<float>(x, 0) /= norm_S;
+		S.at<float>(x, 1) /= norm_S;
+		S.at<float>(x, 2) /= norm_S;
 	}
 }
 
@@ -92,12 +97,12 @@ void computeNormalandGradient(Mat NormalImage,Mat X_gradient,Mat Y_gradient)
 			I.at<float>(3, 0) = (float)Image4.at<uchar>(rowIndex, colIndex);
 			I.at<float>(4, 0) = (float)Image5.at<uchar>(rowIndex, colIndex);
 			I.at<float>(5, 0) = (float)Image6.at<uchar>(rowIndex, colIndex);
-
 			//cout << "I(x,y):\n" << I << endl;
+			
 
 			Mat B = ((S.t() * S).inv() * S.t() * I);
 			//cout << "B(x,y):\n" << B << endl;
-			float norm_b = sqrt(pow(B.at<float>(0, 0), 2.0) + pow(B.at<float>(1, 0), 2.0) + pow(B.at<float>(2, 0), 2.0));
+			float norm_b = norm(B.at<float>(0, 0), B.at<float>(1, 0), B.at<float>(2, 0));
 			//cout << B.at<float>(2, 0);
 			//cout << "norm_b:\n" << norm_b << endl;
 
@@ -113,8 +118,8 @@ void computeNormalandGradient(Mat NormalImage,Mat X_gradient,Mat Y_gradient)
 			float n3 = NormalImage.at<Vec3f>(rowIndex, colIndex)[2];
 
 			//cout << "norm_N: " << pow(n1,2) + pow(n2,2) + pow(n3,2) << endl;
-			X_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n1 : -n1 / n3;
-			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n2 : -n2 / n3;
+			X_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? 0 : -n1 / n3;
+			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? 0 : -n2 / n3;
 			//Z_approx.at<float>(rowIndex, colIndex) = 4 * X_gradient.at<float>(rowIndex, colIndex) + Y_gradient.at<float>(rowIndex, colIndex);
 			//cout << "Zapprox:\n" << Z_approx.at<float>(rowIndex, colIndex) << endl;
 			//break;
@@ -156,7 +161,7 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 			int w_LtoR = Image.cols - colIndex;  // weight from left
 			int w_RtoL = colIndex;
 			Z_approx.at<float>(rowIndex, colIndex) = (X_integral_LtoR.at<float>(rowIndex, colIndex) * w_LtoR + X_integral_RtoL.at<float>(rowIndex, colIndex_inv) * w_RtoL) / Image.cols;
-
+			//Z_approx.at<float>(rowIndex, colIndex) = X_integral_RtoL.at<float>(rowIndex, colIndex_inv);
 		}
 	}
 
@@ -166,7 +171,7 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 			int w_UtoD = Image.rows - rowIndex;  // weight from left
 			int w_DtoU = rowIndex;
 			Z_approx.at<float>(rowIndex, colIndex) += (Y_integral_UtoD.at<float>(rowIndex, colIndex) * w_UtoD + Y_integral_DtoU.at<float>(rowIndex_inv, colIndex) * w_DtoU) / Image.rows;
-
+			//Z_approx.at<float>(rowIndex, colIndex) = Y_integral_UtoD.at<float>(rowIndex, colIndex);
 		}
 	}
 }
@@ -182,6 +187,7 @@ int main() {
 	Mat X_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 	Mat Y_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 	Mat Z_approx = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+
 
 	//cout << Image.cols;
 
@@ -206,18 +212,25 @@ int main() {
 		}
 	}
 
-	writePly(Z_approx);
+	Mat Z = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Z_approx.copyTo(Z(Rect(0, 0, Image.cols, Image.rows)));
+	bilateralFilter(Z_approx, Z, 15, 1, 1);
+
+	writePly(Z);
 
 	//Mat result(Image.rows, Image.cols, CV_8U, Scalar(0));
 	//// Rect ( x, y, width, height )
 	//Image.copyTo(result(Rect(0, 0, tempImage.cols, tempImage.rows)));
 
-	//imshow("CV", NormalImage);
+	Mat try_fun(Image.rows, Image.cols, CV_32FC3);
+	NormalImage.copyTo(try_fun(Rect(0, 0, NormalImage.cols, NormalImage.rows)));
+	//bilateralFilter(NormalImage, try_fun, 15, 80, 80);
+	imshow("CV", try_fun);
 	//
-	//waitKey();
+	waitKey();
 	
 
-	system("pause");
+	//system("pause");
 	return 0;
 }
 
