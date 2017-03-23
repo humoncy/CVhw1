@@ -17,7 +17,7 @@ float norm(float a, float b, float c)
 	return sqrt(pow(a, 2.0) + pow(b, 2.0) + pow(c, 2.0));
 }
 
-void ReadImages()
+void readImages()
 {
 	Image = imread("test/bunny/pic1.bmp", IMREAD_GRAYSCALE);
 	Image2 = imread("test/bunny/pic2.bmp", IMREAD_GRAYSCALE);
@@ -27,7 +27,7 @@ void ReadImages()
 	Image6 = imread("test/bunny/pic6.bmp", IMREAD_GRAYSCALE);
 }
 
-void ReadLightSources()
+void readLightSources()
 {
 	fstream fin;
 	string line;
@@ -52,24 +52,37 @@ void ReadLightSources()
 	}
 }
 
-int main() {
-	
+void writePly(Mat Z_approx)
+{
+	fstream fout;
+	fout.open("test/bunny/bunny_surface.ply", ios::out);
+	if (fout.fail()) {
+		cout << "Fail to open file." << endl;
+		return;
+	}
 
-	ReadImages();
+	fout << "ply\n";
+	fout << "format ascii 1.0\n";
+	fout << "comment alpha=1.0\n";
+	fout << "element vertex 14400\n";
+	fout << "property float x\n";
+	fout << "property float y\n";
+	fout << "property float z\n";
+	fout << "property uchar red\n";
+	fout << "property uchar green\n";
+	fout << "property uchar blue z\n";
+	fout << "end_header\n";
 
-	ReadLightSources();
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			fout << rowIndex << ' ' << colIndex << ' ' << Z_approx.at<float>(rowIndex, colIndex) << " 255 255 255" << endl;
+			//fout << rowIndex << ' ' << colIndex << ' ' << "0.0" << " 255 255 255" << endl;
+		}
+	}
+}
 
-	Mat NormalImage(Image.rows, Image.cols, CV_32FC3);
-	Mat X_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
-	Mat Y_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
-	Mat Z_approx = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
-
-	//cout << Image.cols;
-
-	//cout << S << endl;
-	//cout << Z_approx.at<float>(0, 0) << endl;
-
-	// normal matrix
+void computeNormalandGradient(Mat NormalImage,Mat X_gradient,Mat Y_gradient)
+{
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
 		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
 			Mat I = Mat(6, 1, CV_32F);
@@ -94,11 +107,11 @@ int main() {
 
 			//cout << "N(x,y):\n" << NormalImage.at<Vec3f>(rowIndex, colIndex) << endl;
 
-					
+
 			float n1 = NormalImage.at<Vec3f>(rowIndex, colIndex)[0];
 			float n2 = NormalImage.at<Vec3f>(rowIndex, colIndex)[1];
 			float n3 = NormalImage.at<Vec3f>(rowIndex, colIndex)[2];
-			
+
 			//cout << "norm_N: " << pow(n1,2) + pow(n2,2) + pow(n3,2) << endl;
 			X_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n1 : -n1 / n3;
 			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n2 : -n2 / n3;
@@ -108,9 +121,10 @@ int main() {
 		}
 		//break;
 	}
-	
-	//cout << Z_approx.at<float>(0, 0) << endl;
+}
 
+void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_gradient)
+{
 	Mat X_integral_LtoR = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 	Mat X_integral_RtoL = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 	Mat Y_integral_UtoD = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
@@ -122,7 +136,7 @@ int main() {
 			int colIndex_inv = Image.cols - colIndex - 1; // 118~0
 			X_integral_LtoR.at<float>(rowIndex, colIndex) = X_integral_LtoR.at<float>(rowIndex, colIndex - 1) + X_gradient.at<float>(rowIndex, colIndex);
 			X_integral_RtoL.at<float>(rowIndex, colIndex_inv) = X_integral_RtoL.at<float>(rowIndex, colIndex_inv + 1) + X_gradient.at<float>(rowIndex, colIndex_inv);
-			
+
 			//Z_approx.at<float>(rowIndex, colIndex) = Z_approx.at<float>(rowIndex, colIndex - 1) + X_gradient.at<float>(rowIndex, colIndex);
 		}
 	}
@@ -142,7 +156,7 @@ int main() {
 			int w_LtoR = Image.cols - colIndex;  // weight from left
 			int w_RtoL = colIndex;
 			Z_approx.at<float>(rowIndex, colIndex) = (X_integral_LtoR.at<float>(rowIndex, colIndex) * w_LtoR + X_integral_RtoL.at<float>(rowIndex, colIndex_inv) * w_RtoL) / Image.cols;
-			
+
 		}
 	}
 
@@ -155,8 +169,34 @@ int main() {
 
 		}
 	}
+}
 
-	//cout << NormalImage.at<Vec3f>(0, 0) << endl;
+int main() {
+	
+
+	readImages();
+
+	readLightSources();
+
+	Mat NormalImage(Image.rows, Image.cols, CV_32FC3);
+	Mat X_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat Y_gradient = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat Z_approx = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+
+	//cout << Image.cols;
+
+	//cout << S << endl;
+	//cout << Z_approx.at<float>(0, 0) << endl;
+
+	computeNormalandGradient(NormalImage, X_gradient, Y_gradient);	
+	
+	//cout << Z_approx.at<float>(0, 0) << endl;
+
+	surface_Reconstruction_Integration(Z_approx, X_gradient, Y_gradient);
+
+	
+
+	// Z = 0 when normal is zero
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
 		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
 			float normal_length = norm(NormalImage.at<Vec3f>(rowIndex, colIndex)[0], NormalImage.at<Vec3f>(rowIndex, colIndex)[1], NormalImage.at<Vec3f>(rowIndex, colIndex)[2]);
@@ -166,37 +206,13 @@ int main() {
 		}
 	}
 
-	fstream fout;
-	fout.open("test/bunny/bunny_surface.ply", ios::out);
-	if (fout.fail()) {
-		cout << "Fail to open file." << endl;
-		return 0;
-	}
-
-	fout << "ply\n";
-	fout << "format ascii 1.0\n";
-	fout << "comment alpha=1.0\n";
-	fout << "element vertex 14400\n";
-	fout << "property float x\n";
-	fout << "property float y\n";
-	fout << "property float z\n";
-	fout << "property uchar red\n";
-	fout << "property uchar green\n";
-	fout << "property uchar blue z\n";
-	fout << "end_header\n";
-
-	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
-		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
-			fout << rowIndex << ' ' << colIndex << ' ' << Z_approx.at<float>(rowIndex, colIndex) << " 255 255 255" << endl;
-			//fout << rowIndex << ' ' << colIndex << ' ' << "0.0" << " 255 255 255" << endl;
-		}
-	}
+	writePly(Z_approx);
 
 	//Mat result(Image.rows, Image.cols, CV_8U, Scalar(0));
 	//// Rect ( x, y, width, height )
 	//Image.copyTo(result(Rect(0, 0, tempImage.cols, tempImage.rows)));
 
-	//imshow("CV", Image);
+	//imshow("CV", NormalImage);
 	//
 	//waitKey();
 	
