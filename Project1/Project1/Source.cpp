@@ -174,6 +174,7 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 			//Z_approx.at<float>(rowIndex, colIndex) = Y_integral_UtoD.at<float>(rowIndex, colIndex);
 		}
 	}
+	123132
 }
 
 int main() {
