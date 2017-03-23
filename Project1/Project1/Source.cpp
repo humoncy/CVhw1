@@ -135,6 +135,14 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 	Mat Y_integral_UtoD = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 	Mat Y_integral_DtoU = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 
+	Mat integral_RD = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat integral_DR = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat integral_RU = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat integral_UR = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat integral_LD = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat integral_DL = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat integral_LU = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat integral_UL = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
 		for (int colIndex = 1; colIndex < Image.cols; colIndex++) {
@@ -157,24 +165,18 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
 		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
-			int colIndex_inv = Image.cols - colIndex - 1; // 118~0
-			int w_LtoR = Image.cols - colIndex;  // weight from left
-			int w_RtoL = colIndex;
-			Z_approx.at<float>(rowIndex, colIndex) = (X_integral_LtoR.at<float>(rowIndex, colIndex) * w_LtoR + X_integral_RtoL.at<float>(rowIndex, colIndex_inv) * w_RtoL) / Image.cols;
+			integral_RD.at<float>(rowIndex, colIndex) += X_integral_LtoR.at<float>(rowIndex, colIndex);
 			//Z_approx.at<float>(rowIndex, colIndex) = X_integral_RtoL.at<float>(rowIndex, colIndex_inv);
 		}
 	}
 
 	for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
 		for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
-			int rowIndex_inv = Image.rows - rowIndex - 1; // 118~0
-			int w_UtoD = Image.rows - rowIndex;  // weight from left
-			int w_DtoU = rowIndex;
-			Z_approx.at<float>(rowIndex, colIndex) += (Y_integral_UtoD.at<float>(rowIndex, colIndex) * w_UtoD + Y_integral_DtoU.at<float>(rowIndex_inv, colIndex) * w_DtoU) / Image.rows;
+			integral_RD.at<float>(rowIndex, colIndex) += Y_integral_UtoD.at<float>(rowIndex, colIndex);
 			//Z_approx.at<float>(rowIndex, colIndex) = Y_integral_UtoD.at<float>(rowIndex, colIndex);
 		}
 	}
-	123132
+	
 }
 
 int main() {
