@@ -107,7 +107,7 @@ void computeNormalandGradient(Mat NormalImage,Mat X_gradient,Mat Y_gradient)
 			float norm_b = norm(B.at<float>(0, 0), B.at<float>(1, 0), B.at<float>(2, 0));
 			//cout << B.at<float>(2, 0);
 			//cout << "norm_b:\n" << norm_b << endl;
-
+			
 			NormalImage.at<Vec3f>(rowIndex, colIndex)[0] = (norm_b == 0) ? B.at<float>(0, 0) : B.at<float>(0, 0) / norm_b;
 			NormalImage.at<Vec3f>(rowIndex, colIndex)[1] = (norm_b == 0) ? B.at<float>(1, 0) : B.at<float>(1, 0) / norm_b;
 			NormalImage.at<Vec3f>(rowIndex, colIndex)[2] = (norm_b == 0) ? B.at<float>(2, 0) : B.at<float>(2, 0) / norm_b;
@@ -120,15 +120,50 @@ void computeNormalandGradient(Mat NormalImage,Mat X_gradient,Mat Y_gradient)
 			float n3 = NormalImage.at<Vec3f>(rowIndex, colIndex)[2];
 
 			//cout << "norm_N: " << pow(n1,2) + pow(n2,2) + pow(n3,2) << endl;
-			X_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n1 : -n1 / n3;
-			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n2 : -n2 / n3;
-			//Z_approx.at<float>(rowIndex, colIndex) = 4 * X_gradient.at<float>(rowIndex, colIndex) + Y_gradient.at<float>(rowIndex, colIndex);
-			//cout << "Zapprox:\n" << Z_approx.at<float>(rowIndex, colIndex) << endl;
+			X_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? n1 : n1 / n3;
+			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? n2 : n2 / n3;
+		}
+	}
+	
+}
+
+void integral(Mat dst, Mat X_gradient, Mat Y_gradient, int start_x, int start_y, int direction_x, int direction_y, bool order)
+{
+	if (order) {
+		for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+			for (int i = 1; i < Image.cols; i++) {
+				int colIndex = start_x + direction_x;
+				dst.at<float>(rowIndex, colIndex) = dst.at<float>(rowIndex, colIndex - direction_x) + direction_x * X_gradient.at<float>(rowIndex, colIndex);
+				colIndex += direction_x;
+			}
+		}
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			for (int i = 1; i < Image.cols; i++) {
+				int rowIndex = start_y + direction_y;
+				dst.at<float>(rowIndex, colIndex) = dst.at<float>(rowIndex - direction_y, colIndex) + direction_y * Y_gradient.at<float>(rowIndex, colIndex);
+				rowIndex += direction_y;
+			}
+		}
+	}
+	else {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			for (int i = 1; i < Image.cols; i++) {
+				int rowIndex = start_y + direction_y;
+				dst.at<float>(rowIndex, colIndex) = dst.at<float>(rowIndex - direction_y, colIndex) + direction_y * Y_gradient.at<float>(rowIndex, colIndex);
+				rowIndex += direction_y;
+			}
+		}
+		for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+			for (int i = 1; i < Image.cols; i++) {
+				int colIndex = start_x + direction_x;
+				dst.at<float>(rowIndex, colIndex) = dst.at<float>(rowIndex, colIndex - direction_x) + direction_x * X_gradient.at<float>(rowIndex, colIndex);
+				colIndex += direction_x;
+			}
 		}
 	}
 }
 
-void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_gradient)
+void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_gradient, Mat NormalImage)
 {
 	Mat X_integral_LtoR = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 	Mat X_integral_RtoL = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
@@ -206,7 +241,7 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 			// Right
 			integral_DR.at<float>(rowIndex, colIndex) += X_integral_LtoR.at<float>(rowIndex, colIndex);
 			integral_UR.at<float>(rowIndex, colIndex) += X_integral_LtoR.at<float>(rowIndex, colIndex);
-			// Left to right
+			// Left
 			integral_DL.at<float>(rowIndex, colIndex_inv) += X_integral_RtoL.at<float>(rowIndex, colIndex_inv);
 			integral_UL.at<float>(rowIndex, colIndex_inv) += X_integral_RtoL.at<float>(rowIndex, colIndex_inv);
 		}
@@ -223,31 +258,50 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 			float UR = integral_UR.at<float>(rowIndex, colIndex);
 			float UL = integral_UL.at<float>(rowIndex, colIndex);
 
-			float mean = (RD + RU + LD + LU + DR + DL + UR + UL) / 8;
-
 			float tmp[] = {RD, RU, LD, LU, DR, DL, UR, UL};
 			vector<float> integrations(tmp, tmp+8);
-			sort(integrations.begin(), integrations.end());
 
+			//sort(integrations.begin(), integrations.end());
+			
 			/*std::cout << "integrations contains:";
 			for (std::vector<float>::iterator it = integrations.begin(); it != integrations.end(); ++it)
 				std::cout << ' ' << *it;
 			std::cout << '\n';*/
+
+			Mat tmp_m, tmp_sd;
+			meanStdDev(integrations, tmp_m, tmp_sd);
+
+			double mean = tmp_m.at<double>(0, 0);
+			double sd = tmp_sd.at<double>(0, 0);
+
+			/*cout << "mean: " << mean << endl;
+			cout << "std: " << sd << endl;*/
+
 			int cnt = count_if(integrations.begin(), integrations.end(), [](int i) {return i == 0; });
 			//cout << cnt << endl;
-			if ( cnt >= 2 ) {
-				if (mean < 0.001 && mean > -0.001) {
+			float normal_length = norm(NormalImage.at<Vec3f>(rowIndex, colIndex)[0], NormalImage.at<Vec3f>(rowIndex, colIndex)[1], NormalImage.at<Vec3f>(rowIndex, colIndex)[2]);
+			if ( cnt >= 2 && normal_length == 0.0 ) {
+				if ( abs(mean-0) <= sd ) {
 					Z_approx.at<float>(rowIndex, colIndex) = 0.0;
 					//cout << mean;
 				}
 			}
 			else {
-				//Z_approx.at<float>(rowIndex, colIndex) = DR;
-				Z_approx.at<float>(rowIndex, colIndex) = (
+				Z_approx.at<float>(rowIndex, colIndex) = DR;
+				/*int count_good = 0;
+				for (std::vector<float>::iterator it = integrations.begin(); it != integrations.end(); ++it) {
+					if (abs(*it - mean) <= sd) {
+						Z_approx.at<float>(rowIndex, colIndex) += *it;
+						++count_good;
+					}
+				}
+				Z_approx.at<float>(rowIndex, colIndex) /= count_good;*/
+
+				/*Z_approx.at<float>(rowIndex, colIndex) = (
 					integral_RD.at<float>(rowIndex, colIndex) + integral_RU.at<float>(rowIndex, colIndex) +
 					integral_LD.at<float>(rowIndex, colIndex) + integral_LU.at<float>(rowIndex, colIndex) +
 					integral_DR.at<float>(rowIndex, colIndex) + integral_DL.at<float>(rowIndex, colIndex) +
-					integral_UR.at<float>(rowIndex, colIndex) + integral_UL.at<float>(rowIndex, colIndex)) / 8;
+					integral_UR.at<float>(rowIndex, colIndex) + integral_UL.at<float>(rowIndex, colIndex)) / 8;*/
 			}
 			
 		}
@@ -277,9 +331,8 @@ int main() {
 	
 	//cout << Z_approx.at<float>(0, 0) << endl;
 
-	surface_Reconstruction_Integration(Z_approx, X_gradient, Y_gradient);
+	surface_Reconstruction_Integration(Z_approx, X_gradient, Y_gradient, NormalImage);
 
-	
 
 	//// Z = 0 when normal is zero
 	//for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
@@ -295,7 +348,7 @@ int main() {
 	Z_approx.copyTo(Z(Rect(0, 0, Image.cols, Image.rows)));
 	//bilateralFilter(Z_approx, Z, 15, 1, 1);
 	//medianBlur(Z_approx, Z, 5);
-	GaussianBlur(Z_approx, Z, Size(5, 5), 0, 0);
+	//GaussianBlur(Z_approx, Z, Size(5, 5), 0, 0);
 
 	writePly(Z);
 
