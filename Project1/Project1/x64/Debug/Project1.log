@@ -6,6 +6,5 @@ c:\users\peng\documents\github\cvhw1\project1\packages\opencv.win.native.310.3.0
 c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(20): warning C4244: 'return': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
 c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(55): warning C4244: '正在初始化': 將 'float' 轉換為 'int'，由於類型不同，可能導致資料遺失
 c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(37): warning C4101: 'a': 未參考的區域變數
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(280): warning C4244: '正在初始化': 將 '__int64' 轉換為 'int'，由於類型不同，可能導致資料遺失
   Project1.vcxproj -> C:\Users\Peng\Documents\GitHub\CVhw1\Project1\x64\Debug\Project1.exe
   Project1.vcxproj -> C:\Users\Peng\Documents\GitHub\CVhw1\Project1\x64\Debug\Project1.pdb (Partial PDB)
