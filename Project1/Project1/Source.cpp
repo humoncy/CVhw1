@@ -13,7 +13,7 @@ using namespace cv;
 
 Mat Image, Image2, Image3, Image4, Image5, Image6;
 
-string folder = "venus";
+string folder = "bunny";
 string filename = folder + "_surface";
 
 Mat S = Mat(6, 3, CV_32F);
@@ -37,7 +37,6 @@ void readLightSources()
 {
 	fstream fin;
 	string line;
-	int a;
 	fin.open("test/" + folder + "/LightSource.txt", ios::in);
 	if (!fin) {
 		cout << "Fail to open file." << endl;
@@ -123,8 +122,8 @@ void computeNormalandGradient(Mat NormalImage,Mat X_gradient,Mat Y_gradient)
 			float n3 = NormalImage.at<Vec3f>(rowIndex, colIndex)[2];
 
 			//cout << "norm_N: " << pow(n1,2) + pow(n2,2) + pow(n3,2) << endl;
-			X_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? n1 : n1 / n3;
-			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? n2 : n2 / n3;
+			X_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? n2 : n2 / n3;
+			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n1 : -n1 / n3;
 		}
 	}
 	GaussianBlur(X_gradient, X_gradient, Size(5, 5), 0, 0);
@@ -132,6 +131,7 @@ void computeNormalandGradient(Mat NormalImage,Mat X_gradient,Mat Y_gradient)
 
 }
 
+// This is the first version of my integration, just keep it as memory.
 // order is true : first horizontal then vertical
 //          false: 
 void integral(Mat dst, Mat X_gradient, Mat Y_gradient, int start_x, int start_y, int direction_x, int direction_y, bool order)
@@ -174,33 +174,54 @@ void integral(Mat dst, Mat X_gradient, Mat Y_gradient, int start_x, int start_y,
 void integral_(Mat dst, Mat X_gradient, Mat Y_gradient, int start_x, int start_y, int direction_x, int direction_y, bool order)
 {
 	if (order) {
-		int colIndex = start_y + direction_x;
+		int colIndex = start_y + direction_y;
 		for (int i = 1; i < Image.cols; i++) {
-			dst.at<float>(start_x, colIndex) = dst.at<float>(start_x, colIndex - direction_x) + direction_x * X_gradient.at<float>(start_x, colIndex);
-			colIndex += direction_x;
+			dst.at<float>(start_x, colIndex) = dst.at<float>(start_x, colIndex - direction_y) - direction_y * Y_gradient.at<float>(start_x, colIndex);
+			colIndex += direction_y;
 		}
 		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
-			int rowIndex = start_x + direction_y;
+			int rowIndex = start_x + direction_x;
 			for (int i = 1; i < Image.cols; i++) {
-				dst.at<float>(rowIndex, colIndex) = dst.at<float>(rowIndex - direction_y, colIndex) + direction_y * Y_gradient.at<float>(rowIndex, colIndex);
-				rowIndex += direction_y;
+				dst.at<float>(rowIndex, colIndex) = dst.at<float>(rowIndex - direction_x, colIndex) + direction_x * X_gradient.at<float>(rowIndex, colIndex);
+				rowIndex += direction_x;
 			}
 		}
 	}
 	else {
-		int rowIndex = start_x + direction_y;
+		int rowIndex = start_x + direction_x;
 		for (int i = 1; i < Image.cols; i++) {
-			dst.at<float>(rowIndex, start_y) = dst.at<float>(rowIndex - direction_y, start_y) - direction_y * Y_gradient.at<float>(rowIndex, start_y);
-			rowIndex += direction_y;
+			dst.at<float>(rowIndex, start_y) = dst.at<float>(rowIndex - direction_x, start_y) - direction_x * X_gradient.at<float>(rowIndex, start_y);
+			rowIndex += direction_x;
 		}
 		for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
-			int colIndex = start_y + direction_x;
+			int colIndex = start_y + direction_y;
 			for (int i = 1; i < Image.cols; i++) {
-				dst.at<float>(rowIndex, colIndex) = dst.at<float>(rowIndex, colIndex - direction_x) - direction_x * X_gradient.at<float>(rowIndex, colIndex);
-				colIndex += direction_x;
+				dst.at<float>(rowIndex, colIndex) = dst.at<float>(rowIndex, colIndex - direction_y) + direction_y * Y_gradient.at<float>(rowIndex, colIndex);
+				colIndex += direction_y;
 			}
 		}
 	}
+}
+
+void sanity_check(Mat Z_approx, Mat X_gradient, Mat Y_gradient, Mat NormalImage)
+{
+	Mat derivative_xy = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat derivative_yx = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 1; colIndex < Image.cols-1; colIndex++) {
+			derivative_xy.at<float>(rowIndex, colIndex) = -X_gradient.at<float>(rowIndex, colIndex - 1) + X_gradient.at<float>(rowIndex, colIndex + 1);
+		}
+	}
+	for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+		for (int rowIndex = 1; rowIndex < Image.rows - 1; rowIndex++) {
+			derivative_yx.at<float>(rowIndex, colIndex) = -Y_gradient.at<float>(rowIndex - 1, colIndex) + Y_gradient.at<float>(rowIndex + 1, colIndex);
+		}
+	}
+	imshow("X_gradient", X_gradient);
+	imshow("Y_gradient", Y_gradient);
+	imshow("XY", derivative_xy);
+	imshow("YX", derivative_yx);
 }
 
 void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_gradient, Mat NormalImage)
@@ -215,12 +236,12 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 	Mat integral_UL = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 
 	integral_(integral_RD, X_gradient, Y_gradient, 0, 0, 1, 1, 1);
-	integral_(integral_RU, X_gradient, Y_gradient, Image.rows - 1, 0, 1, -1, 1);
-	integral_(integral_LD, X_gradient, Y_gradient, 0, Image.cols - 1, -1, 1, 1);
+	integral_(integral_RU, X_gradient, Y_gradient, Image.rows - 1, 0, -1, 1, 1);
+	integral_(integral_LD, X_gradient, Y_gradient, 0, Image.cols - 1, 1, -1, 1);
 	integral_(integral_LU, X_gradient, Y_gradient, Image.rows - 1, Image.cols - 1, -1, -1, 1);
 	integral_(integral_DR, X_gradient, Y_gradient, 0, 0, 1, 1, 0);
-	integral_(integral_UR, X_gradient, Y_gradient, Image.rows - 1, 0, 1, -1, 0);
-	integral_(integral_DL, X_gradient, Y_gradient, 0, Image.cols - 1, -1, 1, 0);
+	integral_(integral_UR, X_gradient, Y_gradient, Image.rows - 1, 0, -1, 1, 0);
+	integral_(integral_DL, X_gradient, Y_gradient, 0, Image.cols - 1, 1, -1, 0);
 	integral_(integral_UL, X_gradient, Y_gradient, Image.rows - 1, Image.cols - 1, -1, -1, 0);
 
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
@@ -317,7 +338,23 @@ int main() {
 	
 	//cout << Z_approx.at<float>(0, 0) << endl;
 
+	sanity_check(Z_approx, X_gradient, Y_gradient, NormalImage);
+
 	surface_Reconstruction_Integration(Z_approx, X_gradient, Y_gradient, NormalImage);
+
+	//for (int i = -1; i < 2; i++) {
+	//	for (int j = -1; j < 2; j++) {
+	//		//cout << "Location: (" << 81 + i << ',' << 81 + j << ')' << endl;
+	//		cout << Z_approx.at<float>(81+i, 22+j) << ' ';
+	//		//cout << "X gradient:\n" << X_gradient.at<float>(81+i, 22+j) << ' ';
+	//		//cout << "Y gradient:\n" << Y_gradient.at<float>(81+i, 22+j) << endl;
+	//		//cout << "Normal:\n" << NormalImage.at<Vec3f>(81+i, 22+j) << endl;
+	//		//cout << "Z:\n" << Z_approx.at<float>(81+i, 22+j) << endl;
+	//	}
+	//	cout << endl;
+	//}
+	//
+	//system("pause");
 
 	Mat Z = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 	Z_approx.copyTo(Z(Rect(0, 0, Image.cols, Image.rows)));
@@ -328,7 +365,7 @@ int main() {
 
 	//medianBlur(Z_approx, Z, 5);
 
-	double min, max;
+	/*double min, max;
 	cv::minMaxLoc(Z_approx, &min, &max);
 	
 	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
@@ -337,9 +374,9 @@ int main() {
 				Z_approx.at<float>(rowIndex, colIndex) -= (min+3);
 			}
 		}
-	}
+	}*/
 
-	cv::bilateralFilter(Z_approx, Z, 7, 100, 100);
+	//cv::bilateralFilter(Z_approx, Z, 7, 100, 100);
 
 	writePly(Z, filename);
 
