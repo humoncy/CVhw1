@@ -126,8 +126,10 @@ void computeNormalandGradient(Mat NormalImage,Mat X_gradient,Mat Y_gradient)
 			Y_gradient.at<float>(rowIndex, colIndex) = (n3 == 0) ? -n1 : -n1 / n3;
 		}
 	}
-	GaussianBlur(X_gradient, X_gradient, Size(5, 5), 0, 0);
-	GaussianBlur(Y_gradient, Y_gradient, Size(5, 5), 0, 0);
+	//GaussianBlur(X_gradient, X_gradient, Size(5, 5), 0, 0);
+	//GaussianBlur(Y_gradient, Y_gradient, Size(5, 5), 0, 0);
+	medianBlur(X_gradient, X_gradient, 5);
+	medianBlur(Y_gradient, Y_gradient, 5);
 
 }
 
@@ -203,7 +205,7 @@ void integral_(Mat dst, Mat X_gradient, Mat Y_gradient, int start_x, int start_y
 	}
 }
 
-void sanity_check(Mat Z_approx, Mat X_gradient, Mat Y_gradient, Mat NormalImage)
+void sanity_check(Mat X_gradient, Mat Y_gradient)
 {
 	Mat derivative_xy = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
 	Mat derivative_yx = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
@@ -220,8 +222,36 @@ void sanity_check(Mat Z_approx, Mat X_gradient, Mat Y_gradient, Mat NormalImage)
 	}
 	imshow("X_gradient", X_gradient);
 	imshow("Y_gradient", Y_gradient);
-	imshow("XY", derivative_xy);
-	imshow("YX", derivative_yx);
+	/*imshow("XY", derivative_xy);
+	imshow("YX", derivative_yx);*/
+
+	Mat check_derivatives = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			float diff = derivative_xy.at<float>(rowIndex, colIndex) - derivative_yx.at<float>(rowIndex, colIndex);
+			if ( pow(diff,2.0) <= 0.036) {
+				check_derivatives.at<float>(rowIndex, colIndex) = 0.0;
+			}
+			else {
+				check_derivatives.at<float>(rowIndex, colIndex) = 1.0;
+				float x_sum = 0.0, y_sum = 0.0;
+				for (int x = -2; x <= 2; x++) {
+					for (int y = -2; y <= 2; y++) {
+						if (x != 0 && y != 0) {
+							x_sum += X_gradient.at<float>(rowIndex + x, colIndex + y);
+							y_sum += Y_gradient.at<float>(rowIndex + x, colIndex + y);
+						}					
+					}
+				}
+				X_gradient.at<float>(rowIndex, colIndex) = x_sum / 24;
+				Y_gradient.at<float>(rowIndex, colIndex) = y_sum / 24;
+				/*X_gradient.at<float>(rowIndex, colIndex) /= 1.2;
+				Y_gradient.at<float>(rowIndex, colIndex) /= 1.2;*/
+			}
+		}
+	}
+	//absdiff(derivative_xy, derivative_yx, check_derivatives);
+	imshow("sanity check", check_derivatives);
 }
 
 void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_gradient, Mat NormalImage)
@@ -316,6 +346,131 @@ void surface_Reconstruction_Integration(Mat Z_approx, Mat X_gradient, Mat Y_grad
 	writePly(integral_UL, "UL");*/
 }
 
+float jacobi_Error(Mat U, Mat B)
+{
+	float loss_sum = 0.0;
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			if ( rowIndex == 0 && colIndex == 0 ) {
+				loss_sum += pow((-4 * U.at<float>(rowIndex*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex + 1), 0) + U.at<float>((rowIndex + 1)*Image.cols + colIndex, 0)) - B.at<float>(rowIndex*Image.cols + colIndex, 0), 2.0);
+			}
+			else if (rowIndex == Image.rows - 1 && colIndex == Image.cols - 1) {
+				loss_sum += pow((-4 * U.at<float>(rowIndex*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex - 1), 0) + U.at<float>((rowIndex - 1)*Image.cols + colIndex, 0)) - B.at<float>(rowIndex*Image.cols + colIndex, 0), 2.0);
+			}
+			else if (rowIndex == 0 && colIndex != 0) {
+				loss_sum += pow((-4 * U.at<float>(rowIndex*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex + 1), 0) + U.at<float>((rowIndex + 1)*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex - 1), 0)) - B.at<float>(rowIndex*Image.cols + colIndex, 0), 2.0);
+			}
+			else if (rowIndex == Image.rows - 1 && colIndex != Image.cols - 1) {
+				loss_sum += pow((-4 * U.at<float>(rowIndex*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex - 1), 0) + U.at<float>((rowIndex - 1)*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex + 1), 0)) - B.at<float>(rowIndex*Image.cols + colIndex, 0), 2.0);
+			}
+			else {
+				loss_sum += pow((-4 * U.at<float>(rowIndex*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex + 1), 0) + U.at<float>((rowIndex + 1)*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex - 1), 0) + U.at<float>((rowIndex - 1)*Image.cols + colIndex, 0)) - B.at<float>(rowIndex*Image.cols + colIndex, 0), 2.0);
+			}
+		}
+	}
+	return loss_sum;
+}
+
+void Laplacian_(Mat Laplacian_Z, Mat X_gradient, Mat Y_gradient)
+{
+	Mat derivative_xx = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Mat derivative_yy = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+
+	for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+		for (int rowIndex = 1; rowIndex < Image.rows - 1; rowIndex++) {
+			derivative_xx.at<float>(rowIndex, colIndex) = -X_gradient.at<float>(rowIndex - 1, colIndex) + X_gradient.at<float>(rowIndex + 1, colIndex);
+		}
+	}
+
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 1; colIndex < Image.cols - 1; colIndex++) {
+			derivative_yy.at<float>(rowIndex, colIndex) = -Y_gradient.at<float>(rowIndex, colIndex - 1) + Y_gradient.at<float>(rowIndex, colIndex + 1);
+		}
+	}
+
+	Laplacian_Z = derivative_xx + derivative_yy;
+}
+
+void surface_Reconstruction_Poisson_blending(Mat Z_approx, Mat X_gradient, Mat Y_gradient, Mat NormalImage)
+{
+	Mat Lapla_Zapprox = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Laplacian(Z_approx, Lapla_Zapprox, CV_32F, 3, 1, 0, BORDER_DEFAULT);
+	imshow("Laplacian", Lapla_Zapprox);
+
+	Mat Laplacian_Z = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
+	Laplacian_(Laplacian_Z, X_gradient, Y_gradient);
+	imshow("Laplacian_", Laplacian_Z);
+
+	int vertices = Image.rows * Image.cols;
+
+	Mat B = Mat(vertices, 1, CV_32F, Scalar(0));
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			B.at<float>(rowIndex * Image.cols + colIndex, 0) = Laplacian_Z.at<float>(rowIndex, colIndex);
+		}
+	}
+
+	/*for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 1; colIndex < Image.cols - 1; colIndex++) {
+			B.at<float>(rowIndex * Image.cols + colIndex, 0) = -X_gradient.at<float>(rowIndex, colIndex - 1) + X_gradient.at<float>(rowIndex, colIndex + 1);
+		}
+	}*/
+
+	/*for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			B.at<float>(rowIndex * Image.cols + colIndex, 0) = X_gradient.at<float>(rowIndex, colIndex);
+		}
+	}*/
+
+
+	Mat U = Mat(vertices, 1, CV_32F, Scalar(0));
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			U.at<float>(rowIndex * Image.cols + colIndex, 0) = Z_approx.at<float>(rowIndex, colIndex);
+		}
+	}
+
+	float initial_error = jacobi_Error(U, B);
+	float new_error = initial_error;
+	float loss = 1.0;
+
+	while (loss > 0.0000001) {
+		for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+			for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+				float RU = 0.0;
+				if (rowIndex == 0 && colIndex == 0) {
+					RU = U.at<float>(rowIndex*Image.cols + (colIndex + 1), 0) + U.at<float>((rowIndex + 1)*Image.cols + colIndex, 0);
+				}
+				else if (rowIndex == Image.rows - 1 && colIndex == Image.cols - 1) {
+					RU = U.at<float>(rowIndex*Image.cols + (colIndex - 1), 0) + U.at<float>((rowIndex - 1)*Image.cols + colIndex, 0);
+				}
+				else if (rowIndex == 0 && colIndex != 0) {
+					RU = U.at<float>(rowIndex*Image.cols + (colIndex + 1), 0) + U.at<float>((rowIndex + 1)*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex - 1), 0);
+				}
+				else if (rowIndex == Image.rows - 1 && colIndex != Image.cols - 1) {
+					RU = U.at<float>(rowIndex*Image.cols + (colIndex - 1), 0) + U.at<float>((rowIndex - 1)*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex + 1), 0);
+				}
+				else {
+					RU = U.at<float>(rowIndex*Image.cols + (colIndex + 1), 0) + U.at<float>((rowIndex + 1)*Image.cols + colIndex, 0) + U.at<float>(rowIndex*Image.cols + (colIndex - 1), 0) + U.at<float>((rowIndex - 1)*Image.cols + colIndex, 0);
+				}
+				U.at<float>(rowIndex * Image.cols + colIndex, 0) = -0.25 * (B.at<float>(rowIndex * Image.cols + colIndex, 0) - RU);
+			}
+		}
+		new_error = jacobi_Error(U, B);
+		loss = new_error / initial_error;
+	}
+	cout << "new error:" << new_error << endl;
+	cout << "initial_error: " << initial_error << endl;
+	cout << "loss: " << loss << endl;
+
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			Z_approx.at<float>(rowIndex, colIndex) = U.at<float>(rowIndex * Image.cols + colIndex, 0);
+		}
+	}
+
+}
+
 int main() {
 	
 
@@ -338,9 +493,23 @@ int main() {
 	
 	//cout << Z_approx.at<float>(0, 0) << endl;
 
-	sanity_check(Z_approx, X_gradient, Y_gradient, NormalImage);
+	sanity_check(X_gradient, Y_gradient);
 
 	surface_Reconstruction_Integration(Z_approx, X_gradient, Y_gradient, NormalImage);
+
+	double min, max;
+	cv::minMaxLoc(Z_approx, &min, &max);
+	
+	for (int rowIndex = 0; rowIndex < Image.rows; rowIndex++) {
+		for (int colIndex = 0; colIndex < Image.cols; colIndex++) {
+			if (Z_approx.at<float>(rowIndex, colIndex) != 0.0) {
+				Z_approx.at<float>(rowIndex, colIndex) -= (min+3);
+			}
+		}
+	}
+
+	surface_Reconstruction_Poisson_blending(Z_approx, X_gradient, Y_gradient, NormalImage);
+
 
 	//for (int i = -1; i < 2; i++) {
 	//	for (int j = -1; j < 2; j++) {
@@ -360,7 +529,7 @@ int main() {
 	Z_approx.copyTo(Z(Rect(0, 0, Image.cols, Image.rows)));
 	//GaussianBlur(Z_approx, Z, Size(5, 5), 0, 0);
 	//GaussianBlur(Z, Z_approx, Size(3, 3), 0, 0);
-	//Laplacian(Z, Z_approx, CV_32F, 3, 1, 0, BORDER_DEFAULT);
+	//Laplacian(Z_approx, Z, CV_32F, 3, 1, 0, BORDER_DEFAULT);
 	//Z_approx = Z + Z_approx;
 
 	//medianBlur(Z_approx, Z, 5);

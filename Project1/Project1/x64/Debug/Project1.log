@@ -5,5 +5,12 @@ c:\users\peng\documents\github\cvhw1\project1\packages\opencv.win.native.310.3.0
 c:\users\peng\documents\github\cvhw1\project1\packages\opencv.win.native.310.3.0\build\native\include\opencv2\core\utility.hpp : warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
 c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(23): warning C4244: 'return': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
 c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(57): warning C4244: '正在初始化': 將 'float' 轉換為 'int'，由於類型不同，可能導致資料遺失
+c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(355): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
+c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(358): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
+c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(361): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
+c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(364): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
+c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(367): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
+c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(456): warning C4244: '=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
+c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(506): warning C4244: '-=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
   Project1.vcxproj -> C:\Users\Peng\Documents\GitHub\CVhw1\Project1\x64\Debug\Project1.exe
   Project1.vcxproj -> C:\Users\Peng\Documents\GitHub\CVhw1\Project1\x64\Debug\Project1.pdb (Partial PDB)
