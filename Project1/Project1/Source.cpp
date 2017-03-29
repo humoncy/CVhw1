@@ -152,7 +152,7 @@ void photometric_stereo(const string Img_base, const unsigned int img_num, const
 	double* tmp_space = new double[img_rows*img_cols];
 	double first_error = 1.0;
 	double error = 1.0;
-	for (unsigned int times = 0; (error / first_error)> 0.001; times++) {
+	for (unsigned int times = 0; (error / first_error)> 0.01; times++) {
 		for (int j = 0; j<img_rows; j++) {
 			for (int i = 0; i<img_cols; i++) {
 				tmp_space[j*img_cols + i] = ldexp(depth_double[j*img_cols + i], 2);
@@ -215,7 +215,7 @@ void photometric_stereo(const string Img_base, const unsigned int img_num, const
 }
 int main()
 {
-	photometric_stereo("bunny/", 6, 50);
+	photometric_stereo("star/", 6, 50);
 }
 
 
