@@ -3,17 +3,5 @@ c:\users\peng\documents\github\cvhw1\project1\packages\opencv.win.native.310.3.0
 c:\users\peng\documents\github\cvhw1\project1\packages\opencv.win.native.310.3.0\build\native\include\opencv2\core\persistence.hpp : warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
 c:\users\peng\documents\github\cvhw1\project1\packages\opencv.win.native.310.3.0\build\native\include\opencv2\core\utility.hpp : warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
 c:\users\peng\documents\github\cvhw1\project1\packages\opencv.win.native.310.3.0\build\native\include\opencv2\core\utility.hpp : warning C4819: 檔案含有無法在目前字碼頁 (950) 中表示的字元。請以 Unicode 格式儲存檔案以防止資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(28): warning C4244: 'return': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(86): warning C4244: '正在初始化': 將 'float' 轉換為 'int'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(131): warning C4305: '=': 從 'double' 轉換為 'float'，是由較大的類型轉換為較小的類型，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(419): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(422): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(425): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(428): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(431): warning C4244: '+=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(536): warning C4244: '=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(556): warning C4244: '=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(587): warning C4244: '=': 將 'double' 轉換為 'float'，由於類型不同，可能導致資料遺失
-c:\users\peng\documents\github\cvhw1\project1\project1\source.cpp(617): warning C4305: '*=': 從 'double' 轉換為 'float'，是由較大的類型轉換為較小的類型，可能導致資料遺失
   Project1.vcxproj -> C:\Users\Peng\Documents\GitHub\CVhw1\Project1\x64\Debug\Project1.exe
   Project1.vcxproj -> C:\Users\Peng\Documents\GitHub\CVhw1\Project1\x64\Debug\Project1.pdb (Partial PDB)
