@@ -16,7 +16,7 @@ Mat NormalImage;
 /*************************************************************************/
 /* ========== Change the parameters here to see what you want  ==========*/
 bool special = 0;
-string folder = "venus";
+string folder = "bunny";
 /* ======================================================================*/
 /*************************************************************************/
 
@@ -595,7 +595,7 @@ int main()
 	sanity_check(check_derivatives, X_gradient, Y_gradient);
 
 	surface_Reconstruction_Integration(Z_approx, X_gradient, Y_gradient, NormalImage);
-
+	// comment the following line to see the result of integration
 	surface_Reconstruction_Poisson_blending(Z_approx, X_gradient, Y_gradient, check_derivatives);
 
 	Mat Z = Mat(Image.rows, Image.cols, CV_32F, Scalar(0));
